@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>門診 S/O 產生器 · 兒童內分泌</title>
+<style>
+  :root{
+    --bg:#EEF2F4;--surface:#FFFFFF;--surface-2:#F6F9FA;
+    --ink:#17262E;--muted:#647883;--faint:#93A4AD;
+    --line:#D8E0E5;--line-strong:#C3D0D6;
+    --teal:#0F6E6E;--teal-soft:#E1F0EF;
+    --amber:#B4531A;--amber-soft:#FBEADD;--amber-line:#E9C4A6;
+    --focus:#0F6E6E;--radius:9px;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--line)}
+  .bar{max-width:1440px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+  .brand h1{font-size:15px;font-weight:700;letter-spacing:.2px;margin:0}
+  .brand .sub{font-size:11.5px;color:var(--faint);letter-spacing:.4px}
+  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .12s}
+  .seg button.on{background:var(--teal);color:#fff;box-shadow:0 1px 2px rgba(15,110,110,.35)}
+  .seg.gender button.on{background:#3C5A6E}
+  .seg-label{font-size:11px;color:var(--faint);margin-right:2px;align-self:center;letter-spacing:.3px}
+  .ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer}
+  .ghost:hover{background:var(--surface-2);color:var(--ink)}
+
+  .wrap{max-width:1440px;margin:0 auto;padding:18px 20px 60px;display:grid;grid-template-columns:1fr 468px;gap:22px;align-items:start}
+  @media(max-width:1080px){.wrap{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+  .card > h2{margin:0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--teal);padding:11px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);display:flex;align-items:center;gap:8px}
+  .card > h2 .cn{color:var(--muted);font-weight:600;letter-spacing:.2px;text-transform:none;font-size:12px}
+  .card.collapsible > h2{cursor:pointer}
+  .card.collapsible > h2::after{content:"▾";margin-left:auto;color:var(--faint);transition:transform .15s}
+  .card.collapsed > h2::after{transform:rotate(-90deg)}
+  .card.collapsed .body{display:none}
+  .body{padding:14px 16px}
+  .row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:11px}
+  .row:last-child{margin-bottom:0}
+  .field{display:inline-flex;align-items:center;gap:6px}
+  .field label{font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .lead{font-size:12.5px;color:var(--ink);font-weight:600;white-space:nowrap}
+  input[type=text],input[type=number]{font:inherit;font-size:13px;color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);padding:5px 8px;min-width:0;transition:border-color .12s,box-shadow .12s}
+  input:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(15,110,110,.14)}
+  input::placeholder{color:var(--faint)}
+  select{font:inherit;font-size:13px;color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);padding:5px 8px;cursor:pointer}
+  select:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(15,110,110,.14)}
+  .w2{width:44px}.w3{width:56px}.w4{width:68px}.w5{width:84px}.w7{width:130px}.wgrow{flex:1;min-width:120px}
+  .unit{font-size:12px;color:var(--faint)}
+  .badge{font-size:12px;font-weight:700;color:var(--teal);background:var(--teal-soft);padding:3px 9px;border-radius:6px}
+  .pbadge{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);padding:2px 7px;border-radius:5px;font-family:var(--mono)}
+  .pbadge.hot{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-line)}
+  .pbadge.na{color:var(--faint);background:transparent;border-style:dashed}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chipwrap{display:inline-flex;align-items:center;gap:5px}
+  .chip{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:5px 9px 5px 10px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .12s;user-select:none}
+  .chip .sign{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:700;min-width:12px;text-align:center}
+  .chip:hover{border-color:var(--teal)}
+  .chip.pos{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+  .chip.pos .sign{color:var(--amber)}
+  .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .chipnote{width:118px;padding:4px 7px;font-size:12px;border-color:var(--amber-line);background:#fff}
+  .tagchip{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;cursor:pointer;transition:all .12s;user-select:none}
+  .tagchip:hover{border-color:var(--teal)}
+  .tagchip.on{background:var(--teal-soft);border-color:var(--teal);color:var(--teal)}
+  .subhead{font-size:11.5px;font-weight:700;color:var(--faint);letter-spacing:.4px;text-transform:uppercase;margin:4px 0 8px}
+  .tanner,.mini-seg{display:inline-flex;gap:0}
+  .tanner button,.mini-seg button{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 9px;cursor:pointer}
+  .tanner button:first-child,.mini-seg button:first-child{border-radius:6px 0 0 6px}
+  .tanner button:last-child,.mini-seg button:last-child{border-radius:0 6px 6px 0}
+  .tanner button+button,.mini-seg button+button{border-left:0}
+  .tanner button.on,.mini-seg button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:6px}
+  .calc{font-size:11.5px;color:var(--teal);font-weight:600}
+  table.growth{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.growth th{text-align:left;color:var(--faint);font-weight:600;font-size:11px;padding:0 6px 6px;letter-spacing:.3px}
+  table.growth td{padding:2px 6px 2px 0}
+  table.growth td.sem{color:var(--muted);white-space:nowrap;width:56px}
+  table.growth input{width:100%;padding:4px 6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
+  .out{position:sticky;top:70px}
+  .out .card{margin-bottom:14px}
+  .out h2{justify-content:space-between}
+  .out .actions{display:flex;gap:7px}
+  .btn{border:1px solid var(--teal);background:var(--teal);color:#fff;font:inherit;font-size:11.5px;font-weight:700;letter-spacing:.3px;padding:5px 12px;border-radius:6px;cursor:pointer;transition:opacity .12s}
+  .btn:hover{opacity:.9}
+  .btn.copied{background:#2E7D32;border-color:#2E7D32}
+  textarea.note{width:100%;border:0;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--ink);padding:14px 16px;resize:vertical;background:var(--surface);white-space:pre-wrap}
+  textarea.note:focus{outline:none;background:#FCFEFE}
+  #sBox{min-height:170px}#oBox{min-height:280px}#gsBox{min-height:80px}
+  .copyall{width:100%;margin-top:2px;padding:9px;font-size:13px}
+  .footnote{font-size:11px;color:var(--faint);text-align:center;padding:8px 0 0;line-height:1.6}
+  .refnote{margin-top:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:10.5px;color:var(--muted);line-height:1.6}
+  .refnote-title{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+  .refnote div+div{margin-top:3px}
+  ::selection{background:var(--teal-soft)}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><h1>門診 S/O 產生器</h1><span class="sub">Pediatric Endocrine · SOAP</span></div>
+    <div class="field"><span class="seg-label">樣板</span>
+      <div class="seg" id="tplSeg"><button data-tpl="growth" class="on">生長</button><button data-tpl="obesity">肥胖</button></div></div>
+    <button class="ghost" id="resetBtn">清除</button>
+    <button class="ghost" id="transferBtn" style="background:#0F6E6E;color:#fff;border-color:#0F6E6E">🚀 傳到生長曲線</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="form" id="form">
+
+    <div class="card">
+      <h2>病人基本資料 <span class="cn">Patient</span></h2>
+      <div class="body">
+        <div class="row">
+          <input type="text" id="pasteBox" class="wgrow" placeholder="貼上：王小明 1092859 106/10/24 女（順序不拘）">
+          <span class="badge" id="ageBadge">—</span>
+        </div>
+        <div class="row">
+          <span class="lead">性別</span>
+          <div class="mini-seg" id="sexSeg"><button data-sex="f" class="on">女</button><button data-sex="m">男</button></div>
+          <span class="hint" style="margin:0">貼上文字會自動辨識；用於身高／體重／BMI 百分位與 target height 計算</span>
+        </div>
+        <div class="hint" id="parsedInfo">直接把病人那行貼進來，會自動辨識姓名／病歷號／生日／性別。生日支援國曆(106/10/24、1061024)或西元(2017/10/24、20171024)。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>生長數據 <span class="cn">BH / BW</span></h2>
+      <div class="body">
+        <div class="row">
+          <div class="field"><label>BH</label><input type="text" data-f="bh" class="w4"><span class="unit">cm</span><span class="pbadge" id="bhBadge" title="台灣兒童身高生長曲線參考值（使用者提供）">P—</span></div>
+          <div class="field" style="margin-left:12px"><label>BW</label><input type="text" data-f="bw" class="w4"><span class="unit">kg</span><span class="pbadge" id="bwBadge" title="台灣兒童體重生長曲線參考值（使用者提供）">P—</span></div>
+          <div class="field" style="margin-left:12px"><label>BMI</label><span class="calc" id="bmiVal">—</span><span class="pbadge" id="bmiBadge" title="台灣兒童 BMI 生長曲線參考值（使用者提供）">P—</span></div>
+        </div>
+        <div class="hint">百分位依你上傳的台灣生長曲線自動換算（需先填生日）。P 會直接帶進 O 的 BH/BW 欄。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>家族史 <span class="cn">Family history</span></h2>
+      <div class="body">
+        <div class="row"><span class="lead">Father</span><input type="text" data-f="fa_ht" class="w4"><span class="unit">cm</span><input type="text" data-f="fa_ht_note" placeholder="註（如 delayed puberty）" style="flex:1;margin-left:6px;padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:12px"><div class="chips" data-group="fa" style="margin-left:4px"></div></div>
+        <div class="row"><span class="lead">Mother</span><input type="text" data-f="mo_ht" class="w4"><span class="unit">cm</span><span class="lead" style="margin-left:6px">menarche at</span><input type="text" data-f="mo_men" class="w3"><span class="unit">y</span><input type="text" data-f="mo_ht_note" placeholder="註" style="flex:1;margin-left:6px;padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:12px"></div>
+        <div class="row"><span class="lead">Target height</span><input type="text" data-f="th" class="w4" placeholder="auto"><span class="unit">cm</span><span class="calc" id="thCalc"></span></div>
+        <div class="row" style="align-items:flex-start"><span class="lead" style="padding-top:6px">備註</span><textarea data-f="fa_note" rows="2" placeholder="自由填寫的備註（會出現在 S · Subjective 末尾，方便一起複製到病歷）" style="flex:1;padding:5px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:13px;resize:vertical;min-height:32px"></textarea></div>
+        <div class="row" data-tplonly="obesity"><div class="chips" data-group="fhx_ob"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>主訴 <span class="cn">Chief complaint</span></h2>
+      <div class="body">
+        <div class="row">
+          <select id="ccPreset">
+            <option value="">— 選擇主訴 —</option>
+            <option value="Breast enlargement">Breast enlargement</option>
+            <option value="Breast tenderness">Breast tenderness</option>
+            <option value="Pubic hair">Pubic hair</option>
+            <option value="Menarche|at">Menarche (noted at)</option>
+            <option value="Voice deepening">Voice deepening</option>
+            <option value="Worry about height">Worry about height</option>
+            <option value="Short stature">Short stature</option>
+            <option value="Shorter than peer">Shorter than peer</option>
+            <option value="Decreased growth velocity">Decreased growth velocity</option>
+            <option value="For growth evaluation">For growth evaluation</option>
+          </select>
+          <input type="text" data-f="cc_sign" class="wgrow" placeholder="主訴文字（可自行修改）">
+        </div>
+        <div class="row">
+          <span class="lead">noted <span id="ccConnWord">for</span></span>
+          <input type="text" data-f="cc_dur" class="w5" placeholder="6 mo（留白則不顯示）">
+          <span class="lead">, came with</span>
+          <input type="text" data-f="cc_with" class="w7" list="withList" placeholder="mother…">
+          <datalist id="withList"><option value="mother"></option><option value="father"></option><option value="parents"></option><option value="grandmother"></option><option value="grandfather"></option></datalist>
+        </div>
+        <div class="row">
+          <span class="lead">Height increase</span><input type="text" data-f="pp_ht_inc" class="w3" placeholder="—">
+          <span class="unit">cm in previous</span><input type="text" data-f="pp_ht_period" class="w5" placeholder="1 yr">
+          <span class="hint" style="margin:0">留白則整行不顯示</span>
+        </div>
+        <div class="row"><div class="chips" data-group="pp_cc"></div></div>
+        <div class="row"><div class="chips" data-group="ss_cc"></div></div>
+        <div class="row"><div class="chips" data-group="gi"></div></div>
+        <div class="row">
+          <span class="lead">睡覺時間</span>
+          <input type="text" data-f="sleep_from" class="w5" placeholder="22:00">
+          <span class="lead">~</span>
+          <input type="text" data-f="sleep_to" class="w5" placeholder="06:30">
+          <span class="hint" style="margin:0">兩格皆留白則不顯示</span>
+        </div>
+        <div class="row">
+          <span class="lead">運動時間</span>
+          <input type="text" data-f="exercise" class="w7" placeholder="30 min/day">
+          <span class="hint" style="margin:0">留白則不顯示</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>過去病史 <span class="cn">Past history</span></h2>
+      <div class="body">
+        <div class="subhead">Birth history</div>
+        <div class="row">
+          <div class="field"><label>G</label><input type="text" data-f="g" class="w2"></div>
+          <div class="field"><label>P</label><input type="text" data-f="p" class="w2"></div>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;margin-left:2px">
+            <input type="checkbox" id="twinOn" style="cursor:pointer"><span>twin</span>
+          </label>
+          <div class="mini-seg" data-seg="twin"><button data-v="A" class="on">A</button><button data-v="B">B</button></div>
+          <div class="field"><label>GA</label><input type="text" data-f="ga" class="w3" placeholder="38 或 38+2"><span class="unit">wks</span></div>
+          <div class="field"><label>BBW</label><input type="text" data-f="bbw" class="w4"><span class="unit">gm</span></div>
+          <span class="pbadge" id="sgaBadge" hidden title="Wu JL, et al. Pediatr Neonatol. 2026;67:133-138 (Taiwan 2008-2017 singleton birth weight percentiles)"></span>
+          <div class="mini-seg" data-seg="delivery"><button data-v="NSD" class="on">NSD</button><button data-v="C/S">C/S</button></div>
+        </div>
+        <div class="row"><div class="chips" data-group="birth"></div></div>
+
+        <div class="subhead">Systemic disease <span style="font-weight:600;text-transform:none;color:var(--faint)">· 皆未選則顯示 denied</span></div>
+        <div class="row"><div class="tags" data-taggroup="sysdz"></div></div>
+        <div class="row"><div class="chips" data-group="ss_sys"></div></div>
+        <div class="row"><span class="lead">其他</span><input type="text" data-f="ss_sysdz" class="wgrow" placeholder="留白可"></div>
+
+        <div class="subhead">Systemic / topical drug &amp; exposure（＋可加備註）</div>
+        <div class="row"><div class="chips" data-group="drug_pp"></div></div>
+        <div class="row"><div class="chips" data-group="drug_ss"></div></div>
+
+        <div class="subhead">Development &amp; school <span style="font-weight:600;text-transform:none;color:var(--faint)">· 留白則不顯示</span></div>
+        <div class="row">
+          <label class="lead">DMS</label>
+          <div class="mini-seg" data-seg="dms"><button data-v="" class="on">不顯示</button><button data-v="not delayed">not delayed</button><button data-v="delayed">delayed</button></div>
+          <span class="lead" style="margin-left:6px">School performance</span>
+          <input type="text" data-f="ss_school" class="wgrow" placeholder="留白則不顯示">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>理學檢查 <span class="cn">Physical exam</span></h2>
+      <div class="body">
+        <div class="row" style="margin-bottom:6px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="generalPeOn" checked style="cursor:pointer">
+            <span>一般 PE 正常敘述</span>
+          </label>
+          <span class="hint" style="margin:0">HEENT / Chest / Heart / Abdomen / Ext；取消勾選則不寫入病歷（Thyroid、Skin 不受影響）</span>
+        </div>
+        <div class="subhead">Skin（＋可加備註）</div>
+        <div class="row"><div class="chips" data-group="skin"></div></div>
+        <div class="row" data-tplonly="obesity"><div class="chips" data-group="skin_ob"></div></div>
+
+        <div class="subhead" style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font:inherit;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="pubertyOn" checked style="cursor:pointer">
+            <span>Breast &amp; pubertal</span>
+          </label>
+          <span style="font-weight:600;text-transform:none;color:var(--faint)">· 取消勾選則整段不寫入病歷</span>
+        </div>
+        <div class="row"><span class="lead">Breast Tanner</span><div class="tanner" data-tanner="breast"></div>
+          <div class="mini-seg" data-seg="breastside" style="margin-left:6px"><button data-v="" class="on">不顯示</button><button data-v="left">left</button><button data-v="right">right</button><button data-v="bilateral">bilat</button></div>
+          <input type="text" data-f="breast_note" placeholder="註（如 R>L）" style="flex:1;margin-left:6px;padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:12px;min-width:80px"></div>
+        <div class="row"><span class="lead">Pubic hair Tanner</span><div class="tanner" data-tanner="pubic"></div>
+          <input type="text" data-f="pubic_note" placeholder="註（如 fine hair）" style="flex:1;margin-left:6px;padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:12px;min-width:80px"></div>
+        <div class="row"><span class="lead">Axillary hair</span><div class="chips" data-group="ax"></div>
+          <input type="text" data-f="ax_note" placeholder="註（如 fine hair）" style="flex:1;margin-left:6px;padding:4px 8px;border:1px solid #d6d3d1;border-radius:6px;font-family:inherit;font-size:12px;min-width:80px"></div>
+        <div class="row">
+          <div class="field"><label>SPL</label><input type="text" data-f="spl" class="w3"><span class="unit">cm</span></div>
+          <div class="field" style="margin-left:6px"><label>Testes R</label><input type="text" data-f="testes_r" class="w2"><span class="unit">ml</span></div>
+          <div class="field"><label>L</label><input type="text" data-f="testes_l" class="w2"><span class="unit">ml</span></div>
+          <span class="hint" style="margin:0">留白則整行不顯示</span>
+        </div>
+
+        <div class="subhead" style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font:inherit;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="dysmorphicOn" style="cursor:pointer">
+            <span>Dysmorphic stigmata</span>
+          </label>
+          <span style="font-weight:600;text-transform:none;color:var(--faint)">· 勾選才會寫入病歷，未選的項目顯示 (−)</span>
+        </div>
+        <div class="row"><div class="chips" data-group="dysmorphic"></div></div>
+      </div>
+    </div>
+
+    <div class="card collapsible" id="growthCard">
+      <h2>生長紀錄 <span class="cn">Growth record（學期別 · 選填）</span></h2>
+      <div class="body">
+        <div class="grid2" id="growthGrid"></div>
+        <div class="hint">只有填了 Ht/Wt 的學期會輸出，會一起放進 O 與下方「病人基本資訊」。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>骨齡 <span class="cn">Bone age</span></h2>
+      <div class="body">
+        <div class="row"><div class="field"><span class="lead">Bone age 日期</span><input type="text" data-f="ba_date" class="w5"><span class="hint" style="margin:0">預設今天</span></div></div>
+        <div class="row">
+          <div class="field"><label>BA</label><input type="text" data-f="ba_y" class="w2" placeholder="8" inputmode="numeric"><span class="unit">y</span><input type="text" data-f="ba_m" class="w2" placeholder="6" inputmode="numeric"><span class="unit">m</span></div>
+          <div class="field"><label>CA</label><span class="calc" id="caAuto">—</span><span class="hint" style="margin:0">依生日自動帶入</span></div>
+          <div class="field"><label>SD</label><span class="calc" id="sdAuto">—</span><span class="hint" style="margin:0">依年齡／性別自動帶入</span></div>
+          <div class="field" style="margin-left:6px"><label>PAH</label><input type="text" data-f="pah" class="w4"><span class="unit">cm</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="card"><h2>S · Subjective<span class="actions"><button class="btn" data-copy="sBox">複製 S</button></span></h2><textarea class="note" id="sBox" spellcheck="false"></textarea></div>
+    <div class="card"><h2>O · Objective<span class="actions"><button class="btn" data-copy="oBox">複製 O</button></span></h2><textarea class="note" id="oBox" spellcheck="false"></textarea></div>
+    <button class="btn copyall" data-copy="both">複製 S + O 全部</button>
+    <div class="card" style="margin-top:14px"><h2>病人基本資訊<span class="actions"><button class="btn" data-copy="gsBox">複製</button></span></h2><textarea class="note" id="gsBox" spellcheck="false"></textarea></div>
+    <div class="footnote">輸出可在框內手動微調再複製。<br>資料僅存在本頁面，重新整理即清空，不會上傳。</div>
+    <div class="footnote" style="margin-top:4px">Created &amp; maintained by Dr. Yu-Ling Huang, MD</div>
+    <div class="refnote">
+      <div class="refnote-title">參考文獻 References</div>
+      <div>身高／體重／BMI 百分位：台灣兒童生長曲線參考值（使用者提供之 CSV）</div>
+      <div>SGA／LGA 判定（出生體重．週數）：Wu JL, Kuo CH, Chen CN, Tsao PN, Li CY, Li HY. Nationwide singleton birth weight percentiles for gestational age in Taiwan in 2008–2017. <i>Pediatr Neonatol.</i> 2026;67:133–138. doi:10.1016/j.pedneo.2025.03.010</div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const PCT=[3,10,15,25,50,75,85,90,97];
+const PCTZ=[-1.8808,-1.2816,-1.0364,-0.6745,0,0.6745,1.0364,1.2816,1.8808];
+const BMIPCT=[5,15,50,85,95];
+const BMIZ=[-1.6449,-1.0364,0,1.0364,1.6449];
+const GROWTH={
+m:{ages:[0.0,6.0,12.0,18.0,24.0,30.0,36.0,42.0,48.0,54.0,60.0,66.0,72.0,78.0,84.0,96.0,108.0,120.0,132.0,144.0,156.0,168.0,180.0,192.0,204.0],wt:[[2.5,2.81,2.9,3.0,3.3,3.7,3.9,4.02,4.3],[6.4,6.9,7.1,7.4,7.9,8.5,8.9,9.15,9.7],[7.8,8.35,8.6,9.0,9.6,10.4,10.8,11.08,11.8],[8.9,9.45,9.7,10.1,10.9,11.8,12.3,12.64,13.5],[9.8,10.49,10.8,11.3,12.2,13.1,13.7,14.11,15.1],[10.7,11.47,11.8,12.3,13.3,14.4,15.0,15.44,16.6],[11.4,12.34,12.7,13.2,14.3,15.6,16.3,16.79,18.0],[12.2,13.11,13.5,14.1,15.3,16.7,17.5,18.05,19.4],[12.9,13.87,14.3,15.0,16.3,17.8,18.7,19.33,20.9],[13.6,14.73,15.2,15.9,17.3,19.0,19.9,20.56,22.3],[14.3,15.51,16.0,16.7,18.3,20.1,21.1,21.84,23.8],[15.3,16.57,17.1,17.9,19.6,21.6,22.9,23.87,26.5],[16.3,17.65,18.2,19.0,20.9,23.2,24.7,25.87,29.2],[17.4,18.72,19.3,20.2,22.3,24.7,26.4,27.8,32.0],[18.4,19.81,20.4,21.3,23.6,26.3,28.2,29.8,34.7],[20.3,21.98,22.7,23.8,26.3,29.6,32.2,34.26,40.2],[22.1,24.0,24.8,26.0,28.8,32.7,35.7,37.99,44.3],[24.0,25.99,26.9,28.4,31.5,36.0,39.4,41.91,48.6],[26.3,28.54,29.6,31.4,35.3,40.8,44.7,47.5,54.8],[29.3,31.87,33.1,35.2,40.3,46.5,50.4,53.36,61.5],[32.8,36.36,38.0,40.7,46.5,53.0,56.8,59.82,68.5],[38.0,42.19,44.0,46.8,52.5,58.7,62.7,65.77,74.3],[43.0,47.34,49.0,51.3,56.5,62.5,66.5,69.49,77.6],[46.8,50.53,52.0,54.1,59.0,65.0,69.0,71.87,79.3],[49.3,52.61,54.0,56.1,61.0,66.6,70.0,72.63,80.0]],ht:[[46.3,47.43,47.9,48.6,49.9,51.2,51.8,52.24,53.4],[63.6,64.87,65.4,66.2,67.6,69.1,69.8,70.3,71.6],[71.3,72.74,73.3,74.1,75.7,77.4,78.2,78.76,80.2],[77.2,78.86,79.5,80.4,82.3,84.1,85.1,85.76,87.3],[82.1,83.84,84.6,85.8,87.8,89.9,91.0,91.75,93.6],[85.5,87.57,88.4,89.6,91.9,94.2,95.5,96.34,98.3],[89.1,91.28,92.2,93.6,96.1,98.6,99.9,100.81,103.1],[92.4,94.72,95.7,97.2,99.9,102.5,104.0,104.98,107.3],[95.4,97.97,99.0,100.5,103.5,106.2,107.7,108.72,111.2],[98.4,101.02,102.1,103.7,106.7,109.6,111.2,112.3,115.0],[101.2,104.07,105.2,106.8,110.0,113.1,114.8,115.94,118.7],[103.9,106.77,107.9,109.5,112.8,116.0,117.7,118.87,121.8],[106.5,109.31,110.5,112.3,115.6,118.9,120.6,121.81,124.9],[109.2,112.01,113.2,115.0,118.4,121.7,123.6,124.9,128.1],[111.8,114.56,115.8,117.8,121.2,124.6,126.5,127.83,131.2],[117.0,120.01,121.3,123.3,126.8,130.3,132.2,133.58,137.2],[121.8,124.72,126.0,128.0,131.8,135.5,137.5,138.91,142.5],[126.0,129.17,130.5,132.5,136.5,140.5,142.8,144.38,148.3],[130.5,134.11,135.6,137.8,142.0,146.7,149.4,151.29,156.1],[135.6,139.41,141.1,143.8,148.8,154.2,157.1,159.15,164.4],[141.9,146.53,148.5,151.5,156.9,162.0,164.9,166.75,171.0],[149.3,154.36,156.3,159.0,163.7,168.3,170.8,172.39,176.0],[155.5,159.7,161.3,163.5,167.6,171.8,173.9,175.36,179.0],[159.3,162.58,164.0,166.2,170.0,173.8,175.8,177.16,180.5],[160.9,164.1,165.5,167.7,171.5,174.8,176.8,178.16,181.5]]},
+f:{ages:[0.0,6.0,12.0,18.0,24.0,30.0,36.0,42.0,48.0,54.0,60.0,66.0,72.0,78.0,84.0,96.0,108.0,120.0,132.0,144.0,156.0,168.0,180.0,192.0,204.0],wt:[[2.4,2.71,2.8,2.9,3.2,3.6,3.7,3.81,4.2],[5.8,6.21,6.4,6.7,7.3,7.9,8.3,8.57,9.2],[7.1,7.68,7.9,8.2,8.9,9.7,10.2,10.53,11.3],[8.2,8.75,9.0,9.4,10.2,11.1,11.6,11.98,13.0],[9.2,9.81,10.1,10.6,11.5,12.5,13.1,13.52,14.6],[10.1,10.87,11.2,11.7,12.7,13.8,14.5,14.99,16.2],[11.0,11.75,12.1,12.7,13.9,15.1,15.9,16.45,17.8],[11.8,12.71,13.1,13.7,15.0,16.4,17.3,17.93,19.5],[12.5,13.55,14.0,14.7,16.1,17.7,18.6,19.27,21.1],[13.2,14.3,14.8,15.6,17.2,18.9,20.0,20.78,22.8],[14.0,15.19,15.7,16.5,18.2,20.2,21.3,22.13,24.4],[14.9,16.17,16.7,17.5,19.4,21.5,22.7,23.67,26.5],[15.9,17.17,17.7,18.5,20.5,22.8,24.2,25.32,28.6],[16.8,18.02,18.6,19.6,21.7,24.0,25.6,26.91,30.8],[17.8,19.02,19.6,20.6,22.8,25.3,27.1,28.57,32.9],[19.6,21.14,21.8,22.8,25.4,28.4,30.8,32.65,37.8],[21.5,23.21,24.0,25.3,28.2,32.1,35.0,37.13,42.8],[23.8,25.66,26.6,28.3,31.8,36.7,39.8,41.94,47.3],[26.5,29.04,30.3,32.5,36.9,42.2,45.5,47.65,52.7],[29.8,33.3,34.8,37.1,41.7,47.0,50.1,52.28,57.8],[33.5,37.2,38.7,40.9,45.4,50.5,53.5,55.65,61.2],[37.1,40.33,41.7,43.8,48.1,53.0,56.0,58.18,63.9],[39.3,42.5,43.8,45.7,49.6,54.5,57.5,59.69,65.5],[40.5,43.53,44.8,46.7,50.5,55.0,58.0,60.22,66.2],[41.5,44.01,45.2,47.2,51.0,55.0,58.0,60.3,66.7]],ht:[[45.6,46.73,47.2,47.9,49.1,50.4,51.1,51.57,52.7],[61.5,62.85,63.4,64.2,65.7,67.3,68.1,68.65,70.0],[69.2,70.66,71.3,72.3,74.0,75.8,76.7,77.33,78.9],[75.2,77.0,77.7,78.7,80.7,82.7,83.7,84.4,86.2],[80.3,82.32,83.1,84.2,86.4,88.6,89.8,90.6,92.5],[84.0,86.12,87.0,88.3,90.7,93.1,94.3,95.15,97.3],[87.9,90.16,91.1,92.5,95.1,97.6,99.0,99.94,102.2],[91.4,93.8,94.8,96.3,99.0,101.8,103.3,104.3,106.7],[94.6,97.25,98.3,99.8,102.7,105.6,107.2,108.26,110.8],[97.6,100.39,101.5,103.1,106.2,109.2,110.9,112.02,114.7],[100.5,103.34,104.5,106.2,109.4,112.6,114.4,115.59,118.4],[103.0,105.93,107.1,108.8,112.1,115.3,117.1,118.32,121.3],[105.5,108.54,109.7,111.3,114.8,118.0,119.9,121.17,124.2],[108.1,111.14,112.3,113.9,117.6,120.8,122.6,123.88,127.2],[110.6,113.76,114.9,116.4,120.3,123.5,125.4,126.73,130.1],[115.7,119.05,120.3,122.0,125.8,129.2,131.3,132.77,136.5],[120.7,124.12,125.5,127.5,131.3,135.4,137.8,139.44,143.5],[125.8,129.56,131.0,133.0,137.5,142.3,144.8,146.52,150.8],[131.8,135.89,137.5,139.8,144.5,149.4,151.8,153.41,157.3],[137.9,142.1,143.8,146.3,150.5,154.9,157.0,158.41,161.8],[143.2,146.98,148.5,150.7,154.5,158.4,160.3,161.6,164.8],[146.8,150.0,151.3,153.2,156.8,160.4,162.3,163.63,167.0],[148.5,151.26,152.5,154.5,157.9,161.5,163.5,164.86,168.2],[149.5,152.31,153.5,155.3,158.7,162.3,164.2,165.51,168.8],[150.0,152.81,154.0,155.8,159.3,162.8,164.7,165.97,169.0]]}};
+const BMIREF={
+m:{ages:[24.0,30.0,36.0,42.0,48.0,54.0,60.0,66.0,72.0,78.0,84.0,90.0,96.0,102.0,108.0,114.0,120.0,126.0,132.0,138.0,144.0,150.0,156.0,162.0,168.0,174.0,180.0,186.0,192.0,198.0,204.0,210.0,216.0,222.0],v:[[14.2,14.8,16.0,17.4,18.3],[13.9,14.6,15.8,17.2,18.0],[13.7,14.4,15.6,17.0,17.8],[13.6,14.2,15.4,16.8,17.7],[13.4,14.1,15.3,16.7,17.6],[13.3,14.0,15.3,16.7,17.6],[13.3,13.9,15.2,16.7,17.7],[13.4,14.0,15.3,16.7,18.0],[13.5,14.2,15.4,16.9,18.5],[13.6,14.3,15.7,17.3,19.2],[13.8,14.5,15.9,17.9,20.3],[14.0,14.7,16.1,18.6,21.2],[14.1,14.9,16.3,19.0,21.6],[14.2,15.0,16.5,19.3,22.0],[14.3,15.1,16.7,19.5,22.3],[14.4,15.2,16.8,19.7,22.5],[14.5,15.3,17.0,20.0,22.7],[14.6,15.4,17.1,20.3,22.9],[14.8,15.6,17.4,20.7,23.2],[15.0,15.8,17.7,21.0,23.5],[15.2,16.1,18.0,21.3,23.9],[15.4,16.4,18.3,21.5,24.2],[15.7,16.7,18.7,21.9,24.5],[16.0,17.0,19.1,22.2,24.8],[16.3,17.3,19.4,22.5,25.0],[16.6,17.6,19.7,22.7,25.2],[16.9,17.9,20.0,22.9,25.4],[17.2,18.2,20.3,23.1,25.5],[17.4,18.4,20.5,23.3,25.6],[17.6,18.6,20.7,23.4,25.6],[17.8,18.8,20.9,23.5,25.6],[18.0,19.0,21.0,23.6,25.6],[18.1,19.1,21.1,23.7,25.6],[18.2,19.2,21.2,23.7,25.6]]},
+f:{ages:[24.0,30.0,36.0,42.0,48.0,54.0,60.0,66.0,72.0,78.0,84.0,90.0,96.0,102.0,108.0,114.0,120.0,126.0,132.0,138.0,144.0,150.0,156.0,162.0,168.0,174.0,180.0,186.0,192.0,198.0,204.0,210.0,216.0,222.0],v:[[13.7,14.4,15.7,17.2,18.1],[13.6,14.3,15.5,17.0,17.9],[13.5,14.1,15.4,16.9,17.8],[13.3,14.0,15.3,16.8,17.8],[13.2,13.9,15.3,16.8,17.9],[13.1,13.9,15.3,16.9,18.0],[13.1,13.8,15.3,17.0,18.1],[13.1,13.8,15.3,17.0,18.3],[13.1,13.8,15.3,17.2,18.8],[13.2,13.9,15.4,17.5,19.2],[13.4,14.1,15.6,17.7,19.6],[13.7,14.4,15.8,18.0,20.3],[13.8,14.5,16.0,18.4,20.7],[13.9,14.6,16.1,18.8,21.0],[14.0,14.8,16.3,19.1,21.3],[14.1,14.9,16.5,19.3,21.6],[14.3,15.1,16.8,19.7,22.0],[14.4,15.2,17.1,20.1,22.3],[14.7,15.5,17.5,20.5,22.7],[14.9,15.8,17.9,20.9,23.1],[15.2,16.1,18.3,21.3,23.5],[15.4,16.4,18.6,21.6,23.9],[15.7,16.7,19.0,21.9,24.3],[16.0,17.0,19.3,22.2,24.6],[16.3,17.3,19.6,22.5,24.9],[16.5,17.6,19.8,22.7,25.1],[16.7,17.8,19.9,22.7,25.2],[16.9,18.0,20.0,22.7,25.3],[17.1,18.1,20.0,22.7,25.3],[17.2,18.2,20.0,22.7,25.3],[17.3,18.3,20.0,22.7,25.3],[17.3,18.3,20.0,22.7,25.3],[17.3,18.3,20.1,22.7,25.3],[17.3,18.3,20.1,22.7,25.3]]}};
+
+/* ---- percentile engine (Taiwan growth reference, embedded) ---- */
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y;}
+function normCdf(z){return 0.5*(1+erf(z/Math.SQRT2));}
+function lerp(a,b,f){return a+(b-a)*f;}
+function interpRow(ages,rows,age){if(age<=ages[0])return rows[0];if(age>=ages[ages.length-1])return rows[rows.length-1];let i=0;while(ages[i+1]<age)i++;const f=(age-ages[i])/(ages[i+1]-ages[i]);return rows[i].map((v,j)=>lerp(v,rows[i+1][j],f));}
+function pctFromValue(vals,zs,x){let z;const n=vals.length;if(x<=vals[0]){const s=(zs[1]-zs[0])/(vals[1]-vals[0]);z=zs[0]+(x-vals[0])*s;}else if(x>=vals[n-1]){const s=(zs[n-1]-zs[n-2])/(vals[n-1]-vals[n-2]);z=zs[n-1]+(x-vals[n-1])*s;}else{let i=0;while(vals[i+1]<x)i++;const f=(x-vals[i])/(vals[i+1]-vals[i]);z=lerp(zs[i],zs[i+1],f);}return normCdf(z)*100;}
+function htPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.ht,a),PCTZ,x);}
+function wtPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.wt,a),PCTZ,x);}
+function bmiPct(s,a,x){const g=BMIREF[s];if(a<g.ages[0])return null;return pctFromValue(interpRow(g.ages,g.v,a),BMIZ,x);}
+// Same month-only convention as ageStr, so the percentiles and the SD lookup
+// always agree with the CA shown in the note.
+function ageMonthsFloat(b){return monthsSinceBirth(b);}
+function pctRound(p){if(p<1)return "<1";if(p>99)return ">99";return String(Math.round(p));}
+function setBadge(id,p){const el=document.getElementById(id);if(p==null){el.textContent="P—";el.className="pbadge na";return;}el.textContent="P"+pctRound(p);el.className="pbadge"+((p<3||p>97)?" hot":"");}
+
+/* ---- SGA (birth weight for GA). Table pending: paste Table 2 of the 2025 paper. ---- */
+/* Format when provided: BW_GA={m:{ga:[22..42], p:[[P3,P10,P25,P50,P75,P90,P95],...]},f:{...}} */
+const BW_PCT=[5,10,25,50,75,90,95];
+/* ---- Bone age SD reference by chronological age & sex ---- */
+const BA_SD={
+  m:[[1,2.1],[1.5,2.7],[2,4],[2.5,5.4],[3,6],[3.5,6.6],[4,7],[4.5,7.8],[5,8.4],[5.5,9.1],[6,9.3],[7,10.1],[8,10.8],[9,11],[10,11.4],[11,10.5],[12,10.4],[13,11.1],[14,12],[15,14.2],[16,15.1],[17,15.4]],
+  f:[[1,2.7],[1.5,3.4],[2,4],[2.5,4.8],[3,5.6],[3.5,6.5],[4,7.2],[4.5,8],[5,8.6],[5.5,8.9],[6,9],[7,8.3],[8,8.8],[9,9.3],[10,10.8],[11,12.3],[12,14],[13,14.6],[14,12.6],[15,11.2]],
+};
+function sdForAge(sex,ageYears){
+  const tbl=BA_SD[sex];if(ageYears==null||isNaN(ageYears))return null;
+  if(ageYears<=tbl[0][0])return tbl[0][1];
+  if(ageYears>=tbl[tbl.length-1][0])return tbl[tbl.length-1][1];
+  let i=0;while(tbl[i+1][0]<ageYears)i++;
+  const [a0,v0]=tbl[i],[a1,v1]=tbl[i+1];
+  const f=(ageYears-a0)/(a1-a0);
+  return v0+(v1-v0)*f;
+}
+const BW_Z=[-1.6449,-1.2816,-0.6745,0,0.6745,1.2816,1.6449];
+const BW_GA={m:{ga:[22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42],p:[[379.5,411.9,458.5,507.4,557.8,605.5,632.0],[441.4,488.8,545.4,601.5,659.9,711.4,744.6],[507.6,558.6,632.1,696.7,763.1,821.3,856.2],[585.2,636.3,724.5,800.3,874.7,940.2,981.3],[665.6,721.9,822.7,914.3,1001.5,1073.4,1124.3],[743.9,812.8,929.4,1041.3,1143.5,1224.6,1286.1],[826.0,913.9,1052.4,1184.6,1299.4,1395.4,1469.4],[919.9,1022.5,1191.9,1340.7,1469.6,1586.3,1672.1],[1036.9,1145.6,1343.4,1505.7,1651.1,1790.1,1884.5],[1184.9,1303.1,1510.6,1683.7,1842.4,1997.6,2100.8],[1356.0,1489.4,1696.3,1877.2,2047.6,2213.6,2325.9],[1543.4,1686.3,1894.6,2082.5,2267.4,2444.9,2562.8],[1753.8,1894.4,2101.1,2299.1,2499.1,2688.8,2810.1],[1984.8,2115.3,2316.1,2525.9,2737.8,2937.8,3064.6],[2215.1,2335.1,2531.9,2748.4,2968.8,3174.4,3307.6],[2418.1,2530.5,2725.9,2942.5,3168.1,3375.1,3511.8],[2575.5,2684.5,2879.0,3094.7,3323.4,3531.9,3669.1],[2677.6,2798.9,2982.9,3211.3,3430.9,3654.4,3779.4],[2732.5,2868.9,3043.5,3285.8,3496.0,3734.0,3847.8],[2808.5,2890.0,3126.0,3309.0,3589.0,3759.0,3948.5],[2828.5,2883.9,3177.0,3307.4,3666.5,3758.6,4065.0]]},f:{ga:[22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42],p:[[368.8,397.8,437.5,490.0,532.8,590.0,613.8],[437.8,471.1,519.4,576.3,622.5,677.9,707.3],[499.6,543.7,601.3,664.1,720.1,774.8,811.2],[551.0,613.9,688.2,757.5,828.4,889.8,930.8],[601.2,676.2,776.5,858.4,947.5,1022.1,1065.5],[656.9,733.9,862.9,971.3,1076.8,1171.4,1220.4],[724.8,805.1,958.3,1100.6,1222.4,1337.8,1396.9],[821.9,910.6,1083.3,1250.6,1388.4,1517.4,1590.0],[952.1,1048.1,1239.4,1419.3,1567.5,1706.5,1796.3],[1094.5,1198.8,1407.2,1598.0,1755.4,1907.6,2015.7],[1241.8,1361.3,1581.6,1783.9,1956.9,2125.9,2249.0],[1417.2,1549.9,1775.8,1984.3,2174.4,2359.9,2490.7],[1635.0,1769.4,1993.0,2201.5,2404.6,2601.7,2735.3],[1875.6,2005.4,2219.1,2425.6,2639.4,2843.6,2978.1],[2110.6,2234.9,2435.6,2641.3,2862.3,3071.5,3203.6],[2316.3,2432.1,2624.7,2830.6,3053.1,3265.0,3393.3],[2475.6,2582.6,2774.2,2980.6,3202.8,3415.6,3542.4],[2580.0,2695.2,2876.5,3095.6,3307.5,3533.7,3648.7],[2637.5,2774.4,2936.4,3187.0,3371.3,3632.2,3715.4],[2715.0,2814.1,3018.5,3262.8,3462.5,3734.4,3815.0],[2735.0,2828.1,3062.5,3338.4,3530.0,3876.3,3925.0]]}};
+function parseGA(s){s=(s||"").trim();if(!s)return null;const m=s.match(/^(\d+(?:\.\d+)?)(?:\+(\d+))?$/);if(!m)return null;return parseFloat(m[1])+(m[2]?(+m[2])/7:0);}
+function sgaEval(sex,gaStr,bbwStr){
+  const ga=parseGA(gaStr),bbw=parseFloat(bbwStr);
+  if(ga===null||isNaN(bbw))return null;
+  if(!BW_GA)return {noTable:true};
+  const g=BW_GA[sex];const vals=interpRow(g.ga,g.p,ga);const pct=pctFromValue(vals,BW_Z,bbw);
+  const status=pct<10?"SGA":(pct>90?"LGA":"AGA");
+  return {status,pct:pctRound(pct),pctNum:pct};
+}
+
+/* ---- combined patient paste parser ---- */
+function parsePatient(str){
+  const toks=(str||"").trim().split(/\s+/).filter(Boolean);
+  let name=[],chart="",bday="",sex=null;
+  for(const tok of toks){
+    if(/^(女|男)$/.test(tok)||/^(male|female|[MFmf])$/.test(tok)){
+      sex=(tok==="女"||/^f$/i.test(tok)||/female/i.test(tok))?"f":(tok==="男"||/^m$/i.test(tok)||/male/i.test(tok))?"m":sex;
+    }
+    else if(parseBday(tok)){bday=tok;}
+    else if(/\d/.test(tok)&&/^[A-Za-z0-9\-]+$/.test(tok)){chart=tok;}
+    else{name.push(tok);}
+  }
+  S.txt.name=name.join(" ");S.txt.chart=chart;S.txt.bday=bday;
+  return sex;
+}
+
+const FIND={
+  pp_cc:[["headache","Headache"],["vision","impaired vision"]],
+  ss_cc:[["polyuria","polyuria"],["polydipsia","polydipsia"]],
+  birth:[["asphyxia","asphyxia"],["birthinj","birth injury"],["breech","breech"],["seizure","neonatal seizure"],["hyperbili","neonatal hyperbilirubinemia"],["jaundice","prolonged jaundice"]],
+  drug_pp:[["steroid","steroid"],["herb","herb medicine"],["yam","Yam"],["goat","goat milk"],["oil","Aromatic oil"],["lotion","lotion"],["chicken","chicken skin"],["plastic","plastic tableware"],["supp","dietary supplement"],["slime","Slime"]],
+  ss_sys:[["diarrhea","Chronic diarrhea"],["picky","Picky eater"]],
+  drug_ss:[["steroid","steroid"],["herb","herb medicine"]],
+  skin:[["hyperpig","hyperpigmentation"],["cafe","cafe-au-lait spot"],["acanthosis","acanthosis nigricans"]],
+  skin_ob:[["central","Central obesity"],["striae","Purplish striae"],["moon","moon face"],["buffalo","buffalo hump"],["dysface","Dysmorphic face"]],
+  gi:[["constipation","constipation"],["diarrhea","diarrhea"]],
+  fhx_ob:[["fhdm","FHx of DM"],["fhmctmen","Family history of MCT or MEN"]],
+  dysmorphic:[["syndromic","Syndromic face"],["triangular","Triangular face"],["lowear","Low-set ear"],["lowhair","Low hair line"],["higharch","High-arched palate"],["webneck","Web neck"],["carryangle","Wide-carrying angle"],["incurved","Incurved 5th finger"],["asymmetry","Asymmetry of limbs"],["downslant","downward slant"],["edema","edema"]],
+  ax:[["ax","Axillary hair"]],fa:[["fa_delay","delayed puberty"]],
+};
+const NOTE_GROUPS={drug_pp:true,drug_ss:true,skin:true,pp_cc:true,ss_cc:true,gi:true};
+const SYSDZ_TAGS=["asthma","allergic rhinitis","atopic dermatitis","ADHD"];
+const SEMS_KG=["幼小上","幼小下","幼中上","幼中下","幼大上","幼大下"];
+const SEMS_ELEM=["小一上","小一下","小二上","小二下","小三上","小三下","小四上","小四下","小五上","小五下","小六上","小六下"];
+const SEMS_JUNIOR=["國一上","國一下","國二上","國二下","國三上","國三下"];
+// Canonical order (used for reading values back out); the on-screen columns are laid out separately
+const SEMS=[...SEMS_KG,...SEMS_ELEM,...SEMS_JUNIOR];
+
+const S={tpl:"growth",sex:"f",find:{},note:{},txt:{},tags:new Set(),growth:{},dysmorphicOn:false,twinOn:false,pubertyOn:true,generalPeOn:true,
+  seg:{delivery:"NSD",dms:"",breastside:"",twin:"A"},
+  tanner:{breast:"I",pubic:"I"}};
+const CC_DEFAULT="";
+const fkey=(g,k)=>g+"."+k;
+const on=(g,k)=>!!S.find[fkey(g,k)];
+
+function pad(n){return String(n).padStart(2,"0");}
+function todayCompact(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;}
+function parseBday(str){
+  if(!str)return null;str=str.trim();let y,m,d;
+  if(/[\/\-.]/.test(str)){const p=str.split(/[\/\-.]/).map(x=>parseInt(x,10));if(p.length<3||p.some(isNaN))return null;[y,m,d]=p;if(y<1912)y+=1911;}
+  else if(/^\d+$/.test(str)){if(str.length===8){y=+str.slice(0,4);m=+str.slice(4,6);d=+str.slice(6,8);}else if(str.length===7){y=+str.slice(0,3)+1911;m=+str.slice(3,5);d=+str.slice(5,7);}else return null;}
+  else return null;
+  if(!(m>=1&&m<=12&&d>=1&&d<=31))return null;return{y,m,d};
+}
+// Age convention: count elapsed calendar months only — the day of month is ignored.
+// e.g. born 2014-03-xx, seen 2026-08-xx → 149 mo → 12y5m
+function monthsSinceBirth(b){if(!b)return null;const t=new Date();const mo=(t.getFullYear()-b.y)*12+(t.getMonth()+1-b.m);return mo<0?null:mo;}
+function ageStr(b){const mo=monthsSinceBirth(b);if(mo===null)return"";return `${Math.floor(mo/12)}y${mo%12}m`;}
+function rocBday(b){return b?`${b.y-1911}/${pad(b.m)}/${pad(b.d)}`:"";}
+function westBday(b){return b?`${b.y}/${pad(b.m)}/${pad(b.d)}`:"";}
+
+/* chips */
+document.querySelectorAll(".chips").forEach(box=>{
+  const g=box.dataset.group;
+  (FIND[g]||[]).forEach(([k,label])=>{
+    const wrap=document.createElement("span");wrap.className="chipwrap";
+    const b=document.createElement("button");b.className="chip";b.type="button";b.dataset.g=g;b.dataset.k=k;
+    b.innerHTML=`<span class="txt">${label}</span><span class="sign">(−)</span>`;wrap.appendChild(b);
+    if(NOTE_GROUPS[g]){const inp=document.createElement("input");inp.type="text";inp.className="chipnote";inp.hidden=true;inp.placeholder="備註";inp.dataset.noteG=g;inp.dataset.noteK=k;wrap.appendChild(inp);}
+    box.appendChild(wrap);
+  });
+});
+/* tag chips (systemic disease) */
+document.querySelectorAll(".tags").forEach(box=>{
+  SYSDZ_TAGS.forEach(v=>{const b=document.createElement("button");b.className="tagchip";b.type="button";b.dataset.tv=v;b.textContent=v;box.appendChild(b);});
+});
+/* tanner */
+document.querySelectorAll(".tanner").forEach(box=>{
+  const t=box.dataset.tanner;
+  ["I","II","III","IV","V"].forEach(v=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.dataset.v=v;if(v===S.tanner[t])b.classList.add("on");box.appendChild(b);});
+});
+/* growth grid: left column = 小學 (12), right column = 幼稚園 + 國中 (6 + 6 = 12) */
+const gg=document.getElementById("growthGrid");
+// Left column = 小學 (most used). Right column continues the school progression from the
+// bottom of the left column, so Tab from 小六下 lands on 國一上; 幼稚園 sits last as it is rarely used.
+const SEMS_LEFT=SEMS_ELEM;
+const SEMS_RIGHT=[...SEMS_JUNIOR,...SEMS_KG];
+[SEMS_LEFT,SEMS_RIGHT].forEach(col=>{
+  const tbl=document.createElement("table");tbl.className="growth";
+  tbl.innerHTML="<thead><tr><th>學期</th><th>Ht(cm)</th><th>Wt(kg)</th></tr></thead>";
+  const tb=document.createElement("tbody");
+  col.forEach(sem=>{const tr=document.createElement("tr");tr.innerHTML=`<td class="sem">${sem}</td><td><input type="text" data-gsem="${sem}" data-gf="ht"></td><td><input type="text" data-gsem="${sem}" data-gf="wt"></td>`;tb.appendChild(tr);});
+  tbl.appendChild(tb);gg.appendChild(tbl);
+});
+
+/* interactions */
+document.addEventListener("click",e=>{
+  const chip=e.target.closest(".chip");
+  if(chip){const g=chip.dataset.g,k=chip.dataset.k,key=fkey(g,k);S.find[key]=!S.find[key];chip.classList.toggle("pos",S.find[key]);chip.querySelector(".sign").textContent=S.find[key]?"(+)":"(−)";if(NOTE_GROUPS[g]){const nt=chip.parentElement.querySelector(".chipnote");if(nt)nt.hidden=!S.find[key];}
+    // Turning any dysmorphic item (+) auto-enables the section so it lands in the note
+    if(g==="dysmorphic"&&S.find[key]&&!S.dysmorphicOn){S.dysmorphicOn=true;document.getElementById("dysmorphicOn").checked=true;}
+    render();return;}
+  const tag=e.target.closest(".tagchip");
+  if(tag){const v=tag.dataset.tv;if(S.tags.has(v))S.tags.delete(v);else S.tags.add(v);document.querySelectorAll(`.tagchip[data-tv="${v}"]`).forEach(x=>x.classList.toggle("on",S.tags.has(v)));render();return;}
+  const tb=e.target.closest(".tanner button");
+  if(tb){const t=tb.parentElement.dataset.tanner;S.tanner[t]=tb.dataset.v;document.querySelectorAll(`.tanner[data-tanner="${t}"] button`).forEach(x=>x.classList.toggle("on",x.dataset.v===tb.dataset.v));
+    // Touching a Tanner stage means the pubertal exam was done — auto-enable the section
+    if(!S.pubertyOn){S.pubertyOn=true;document.getElementById("pubertyOn").checked=true;}
+    render();return;}
+  const sb=e.target.closest(".mini-seg button");
+  if(sb){const seg=sb.parentElement.dataset.seg;S.seg[seg]=sb.dataset.v;sb.parentElement.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===sb));render();return;}
+});
+document.addEventListener("input",e=>{
+  const el=e.target;
+  if(el.dataset.f){S.txt[el.dataset.f]=el.value;render();}
+  else if(el.dataset.noteG){S.note[fkey(el.dataset.noteG,el.dataset.noteK)]=el.value;render();}
+  else if(el.dataset.gsem){const s=el.dataset.gsem;S.growth[s]=S.growth[s]||{};S.growth[s][el.dataset.gf]=el.value;render();}
+});
+document.getElementById("pasteBox").addEventListener("input",e=>{
+  const sx=parsePatient(e.target.value);
+  if(sx&&sx!==S.sex){S.sex=sx;document.querySelectorAll("#sexSeg button").forEach(x=>x.classList.toggle("on",x.dataset.sex===sx));applyVisibility();}
+  render();
+});
+document.getElementById("ccPreset").addEventListener("change",e=>{
+  const [sign,conn]=e.target.value.split("|");S.ccConn=conn||"for";document.getElementById("ccConnWord").textContent=S.ccConn;
+  if(sign){S.txt.cc_sign=sign;document.querySelector('[data-f="cc_sign"]').value=sign;}render();
+});
+document.getElementById("sexSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;S.sex=b.dataset.sex;document.querySelectorAll("#sexSeg button").forEach(x=>x.classList.toggle("on",x===b));render();});
+document.getElementById("tplSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||b.dataset.tpl===S.tpl)return;
+  S.tpl=b.dataset.tpl;
+  document.querySelectorAll("#tplSeg button").forEach(x=>x.classList.toggle("on",x===b));
+  // Pubertal exam is core for 生長 but optional for 肥胖 — set a sensible default on switch
+  S.pubertyOn=(S.tpl!=="obesity");
+  document.getElementById("pubertyOn").checked=S.pubertyOn;
+  applyVisibility();render();
+});
+document.getElementById("dysmorphicOn").addEventListener("change",e=>{S.dysmorphicOn=e.target.checked;render();});
+document.getElementById("pubertyOn").addEventListener("change",e=>{S.pubertyOn=e.target.checked;render();});
+document.getElementById("generalPeOn").addEventListener("change",e=>{S.generalPeOn=e.target.checked;render();});
+document.getElementById("twinOn").addEventListener("change",e=>{S.twinOn=e.target.checked;render();});
+document.querySelectorAll(".card.collapsible > h2").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("collapsed")));
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  if(!confirm("清除所有已填欄位？"))return;
+  S.find={};S.note={};S.txt={};S.tags=new Set();S.growth={};S.ccConn="for";S.dysmorphicOn=false;S.twinOn=false;S.generalPeOn=true;
+  S.pubertyOn=(S.tpl!=="obesity");
+  S.seg={delivery:"NSD",dms:"",breastside:"",twin:"A"};
+  S.tanner={breast:"I",pubic:"I"};
+  document.querySelectorAll("input,textarea.plain,textarea[data-f],textarea[data-note-g]").forEach(i=>{if(i.type!=="checkbox")i.value="";});
+  document.getElementById("dysmorphicOn").checked=false;
+  document.getElementById("twinOn").checked=false;
+  document.getElementById("generalPeOn").checked=true;
+  document.getElementById("pubertyOn").checked=S.pubertyOn;
+  document.getElementById("ccPreset").value="";document.getElementById("ccConnWord").textContent="for";
+  document.querySelectorAll(".chip").forEach(c=>{c.classList.remove("pos");c.querySelector(".sign").textContent="(−)";});
+  document.querySelectorAll(".chipnote").forEach(n=>n.hidden=true);
+  document.querySelectorAll(".tagchip").forEach(t=>t.classList.remove("on"));
+  initBaDate();syncSegUI();render();
+});
+
+function syncSegUI(){
+  document.querySelectorAll(".mini-seg").forEach(seg=>{const n=seg.dataset.seg;if(!n)return;seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.seg[n]));});
+  document.querySelectorAll(".tanner").forEach(box=>{const t=box.dataset.tanner;box.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.tanner[t]));});
+}
+function applyVisibility(){
+  // Only blocks explicitly tagged with data-tpl are template-specific; everything else always shows
+  document.querySelectorAll("[data-tplonly]").forEach(el=>{el.hidden=el.dataset.tplonly!==S.tpl;});
+}
+
+const t=(k)=>(S.txt[k]||"").trim();
+const has=(k)=>t(k)!=="";
+// Bone age is entered as two numeric boxes (y / m); assemble them into "8y6m" for the note.
+function baText(){
+  const y=t("ba_y"),m=t("ba_m");
+  if(!y&&!m)return "";
+  if(!y)return `${parseInt(m,10)||0}m`;
+  return `${parseInt(y,10)||0}y${m?`${parseInt(m,10)||0}m`:""}`;
+}
+function baDecimal(){
+  const y=parseInt(t("ba_y"),10),m=parseInt(t("ba_m"),10);
+  if(isNaN(y)&&isNaN(m))return null;
+  return (isNaN(y)?0:y)+(isNaN(m)?0:m)/12;
+}
+function parts(g){const noteG=NOTE_GROUPS[g];return FIND[g].map(([k,label])=>{if(!on(g,k))return `${label}(-)`;const nt=noteG?(S.note[fkey(g,k)]||"").trim():"";return nt?`${label}(+, ${nt})`:`${label}(+)`;});}
+function sysdzSel(){return SYSDZ_TAGS.filter(v=>S.tags.has(v));}
+function targetHeight(){const fa=parseFloat(t("fa_ht")),mo=parseFloat(t("mo_ht"));if(isNaN(fa)||isNaN(mo))return null;const v=S.sex==="m"?(fa+mo+13)/2:(fa+mo-13)/2;return Math.round(v*10)/10;}
+function growthLines(){return SEMS.filter(s=>S.growth[s]&&((S.growth[s].ht||"").trim()||(S.growth[s].wt||"").trim())).map(s=>{const g=S.growth[s];return `${s}${(g.ht||"").trim()?" "+g.ht.trim():""}${(g.wt||"").trim()?" "+g.wt.trim():""}`;});}
+
+function render(){
+  const b=parseBday(t("bday")),age=ageStr(b);
+  document.getElementById("ageBadge").textContent=age||"—";
+  const headerLine=`${todayCompact()}${age?" "+age:""}`;
+
+  // parsed patient readout
+  const pInfo=document.getElementById("parsedInfo");
+  if(has("name")||has("chart")||has("bday")){
+    const bits=[];if(has("name"))bits.push("姓名 "+t("name"));if(has("chart"))bits.push("病歷號 "+t("chart"));
+    if(b)bits.push("生日 "+westBday(b)+(age?" · "+age:""));else if(has("bday"))bits.push("生日無法辨識");
+    bits.push(S.sex==="m"?"男":"女");pInfo.textContent=bits.join(" · ");
+  } else pInfo.textContent="直接把病人那行貼進來，會自動辨識姓名／病歷號／生日／性別。";
+
+  // BH/BW/BMI percentiles
+  const ageM=ageMonthsFloat(b);
+  let bhP="",bwP="";
+  const bhV=parseFloat(t("bh")),bwV=parseFloat(t("bw"));
+  if(ageM!==null&&!isNaN(bhV)){const p=htPct(S.sex,ageM,bhV);bhP=pctRound(p);setBadge("bhBadge",p);}else setBadge("bhBadge",null);
+  if(ageM!==null&&!isNaN(bwV)){const p=wtPct(S.sex,ageM,bwV);bwP=pctRound(p);setBadge("bwBadge",p);}else setBadge("bwBadge",null);
+  const bmiEl=document.getElementById("bmiVal");
+  let bmiStr="",bmiP="";
+  if(!isNaN(bhV)&&!isNaN(bwV)&&bhV>0){const bmi=bwV/Math.pow(bhV/100,2);bmiStr=bmi.toFixed(1);bmiEl.textContent=bmiStr;
+    if(ageM!==null){const p=bmiPct(S.sex,ageM,bmi);if(p!==null)bmiP=pctRound(p);setBadge("bmiBadge",p);}else setBadge("bmiBadge",null);
+  }else{bmiEl.textContent="—";setBadge("bmiBadge",null);}
+
+  // SGA
+  const sga=sgaEval(S.sex,t("ga"),t("bbw"));
+  const sgaEl=document.getElementById("sgaBadge");let bbwSuffix="";
+  if(!sga){sgaEl.hidden=true;}
+  else if(sga.noTable){sgaEl.hidden=false;sgaEl.textContent="SGA：待載入參考表";sgaEl.className="pbadge na";}
+  else{sgaEl.hidden=false;sgaEl.textContent=`${sga.status} · BBW P${sga.pct}`;sgaEl.className="pbadge"+(sga.status==="SGA"?" hot":"");
+    const statusTag=sga.status==="SGA"?", SGA":sga.status==="LGA"?", LGA":"";
+    bbwSuffix=` (P${sga.pct}${statusTag})`;}
+
+  const auto=targetHeight(),thCalc=document.getElementById("thCalc"),thInput=document.querySelector('[data-f="th"]');
+  if(auto!==null){thCalc.textContent="自動 "+auto+" cm";if(thInput)thInput.placeholder=String(auto);}else{thCalc.textContent="";if(thInput)thInput.placeholder="auto";}
+  const thOut=has("th")?t("th"):(auto!==null?String(auto):"");
+
+  const ccSign=has("cc_sign")?t("cc_sign"):CC_DEFAULT;
+  const conn=S.ccConn||"for";
+  let cc=ccSign;
+  if(has("cc_dur"))cc+=` noted ${conn} ${t("cc_dur")}`;
+  if(has("cc_with"))cc+=`, came with ${t("cc_with")}`;
+
+  const twinPart=S.twinOn?`, twin ${S.seg.twin||"A"}`:"";
+  const birth=`Birth hx: G${t("g")} P${t("p")}${twinPart}, GA ${t("ga")} wks, BBW: ${t("bbw")} gm${bbwSuffix}, ${S.seg.delivery}, `+parts("birth").join(", ");
+  let fam=`Father ${t("fa_ht")} cm, delayed puberty(${on("fa","fa_delay")?"+":"-"})${has("fa_ht_note")?`, ${t("fa_ht_note")}`:""}\nMother ${t("mo_ht")} cm, menarche at ${t("mo_men")} y${has("mo_ht_note")?`, ${t("mo_ht_note")}`:""}\nTarget height ${thOut} cm`;
+  if(S.tpl==="obesity")fam+=`\n${parts("fhx_ob").join(", ")}`;
+
+  const ph=[birth];
+  // Systemic disease — chips + tag selections + free text
+  let sysBase=parts("ss_sys").join(" ");
+  const sysExtra=[...sysdzSel(),...(has("ss_sysdz")?[t("ss_sysdz")]:[])];
+  if(sysExtra.length)sysBase+=`, ${sysExtra.join(", ")}`;
+  ph.push(`Systemic disease: ${sysBase}`);
+  // Drug use — both chip groups combined
+  const drugLine=`Systemic or topical drug use: ${parts("drug_pp").concat(parts("drug_ss")).join(", ")}`;
+  ph.push(drugLine);
+  // Development & school — only if DMS chosen or school filled
+  if(S.seg.dms||has("ss_school")){
+    let devLine=S.seg.dms?`DMS: ${S.seg.dms}`:"";
+    if(has("ss_school"))devLine+=`${devLine?" ":""}School performance: ${t("ss_school")}`;
+    ph.push(devLine);
+  }
+  const phText=ph.map((x,i)=>`${i+1}. ${x}`).join("\n");
+
+  const sLines=[headerLine,`[C.C.] ${cc}`];
+  if(has("pp_ht_inc"))sLines.push(`Height increase ${t("pp_ht_inc")} cm in previous ${t("pp_ht_period")}`);
+  const ccChips=[parts("pp_cc").join(", "),parts("ss_cc").join(", "),parts("gi").join(", ")].filter(Boolean).join("\n");
+  if(ccChips)sLines.push(ccChips);
+  if(has("sleep_from")||has("sleep_to"))sLines.push(`Sleep: ${t("sleep_from")} ~ ${t("sleep_to")}`);
+  if(has("exercise"))sLines.push(`Exercise: ${t("exercise")}`);
+  sLines.push("","[Past history]",phText,"","[Family history]",fam);
+  if(has("fa_note")) sLines.push("","[Note]",t("fa_note"));
+  document.getElementById("sBox").value=sLines.join("\n");
+
+  const suffix=(k)=>has(k)?`, ${t(k)}`:"";
+  const pubLines=[
+    `Breast: Tanner stage ${S.tanner.breast}${S.seg.breastside?`, ${S.seg.breastside}`:""}${suffix("breast_note")}`,
+    `Pubic hair: Tanner stage ${S.tanner.pubic}${suffix("pubic_note")}`,
+  ];
+  // SPL / Testes — only shown when at least one is filled
+  if(has("spl"))pubLines.push(`SPL: ${t("spl")} cm`);
+  if(has("testes_r")||has("testes_l"))pubLines.push(`Testes: R ${t("testes_r")} ml, L ${t("testes_l")} ml`);
+  pubLines.push(`Axillary hair (${on("ax","ax")?"+":"-"})${suffix("ax_note")}`);
+  const genital=pubLines.join("\n");
+
+  const gLines=growthLines();
+  const baDate=has("ba_date")?t("ba_date"):todayCompact();
+  // Convert compact yyyymmdd to yyyy-mm-dd for display in the output
+  const baDateFmt=/^\d{8}$/.test(baDate)?`${baDate.slice(0,4)}-${baDate.slice(4,6)}-${baDate.slice(6,8)}`:baDate;
+  const caAutoEl=document.getElementById("caAuto");
+  caAutoEl.textContent=age||"—";
+  const caOut=age||"";
+  const sdAutoEl=document.getElementById("sdAuto");
+  const sdVal=ageM!==null?sdForAge(S.sex,ageM/12):null;
+  const sdOut=sdVal!==null?sdVal.toFixed(1):"";
+  sdAutoEl.textContent=sdOut||"—";
+
+  let vitalLine=`BH ${t("bh")} (P${bhP}), BW ${t("bw")} (P${bwP})`;
+  if(bmiStr)vitalLine+=`, BMI ${bmiStr}${bmiP?` (P${bmiP})`:""}`;
+  let oLines=[vitalLine];
+  if(S.generalPeOn) oLines.push("HEENT: conjunctiva not pale","Chest: bilateral clear breathing sound","Heart: RHB, no murmur","Abdomen: soft and flat, normoactive bowel sound","Ext: freely movable");
+  oLines.push("Thyroid: not palpable",`Skin: ${parts("skin").concat(S.tpl==="obesity"?parts("skin_ob"):[]).join(", ")}`);
+  // Breast & pubertal — included only when its checkbox is on
+  if(S.pubertyOn) oLines.push(genital);
+  // Dysmorphic stigmata: included only when the section checkbox is on;
+  // when included, every item is listed with (+) or (-).
+  if(S.dysmorphicOn) oLines.push("",`Dysmorphic stigmata: ${parts("dysmorphic").join(", ")}`);
+  if(gLines.length)oLines.push("",...gLines);
+  oLines.push("",`Bone age (${baDateFmt}): ${baText()} (CA ${caOut} SD ${sdOut}) PAH ${t("pah")} ()`);
+  document.getElementById("oBox").value=oLines.join("\n");
+
+  const sexMF=S.sex==="m"?"M":"F";
+  const gs=[];
+  if(has("name")) gs.push(t("name"));
+  if(has("chart")) gs.push(t("chart"));
+  if(b) gs.push(westBday(b));
+  gs.push(sexMF);
+  const faH=t("fa_ht"),moH=t("mo_ht");
+  if(faH) gs.push(`Father's height: ${faH} cm${has("fa_ht_note")?`, ${t("fa_ht_note")}`:""}`);
+  if(moH) gs.push(`Mother's height: ${moH} cm${has("mo_ht_note")?`, ${t("mo_ht_note")}`:""}`);
+  if(gLines.length) gs.push("",...gLines);
+  document.getElementById("gsBox").value=gs.join("\n");
+}
+
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-copy]");if(!b)return;const which=b.dataset.copy;let text;
+  if(which==="both")text="[S]\n"+document.getElementById("sBox").value+"\n\n[O]\n"+document.getElementById("oBox").value;
+  else text=document.getElementById(which).value;
+  const ok=await copyText(text),orig=b.textContent;
+  b.textContent=ok?"已複製 ✓":"請手動選取複製";b.classList.toggle("copied",ok);
+  setTimeout(()=>{b.textContent=orig;b.classList.remove("copied");},1400);
+});
+async function copyText(x){try{await navigator.clipboard.writeText(x);return true;}catch(_){try{const ta=document.createElement("textarea");ta.value=x;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();const ok=document.execCommand("copy");document.body.removeChild(ta);return ok;}catch(e){return false;}}}
+function initBaDate(){const el=document.querySelector('[data-f="ba_date"]');el.value=todayCompact();S.txt.ba_date=el.value;}
+
+S.ccConn="for";
+document.querySelector('[data-f="cc_sign"]').value=CC_DEFAULT;S.txt.cc_sign=CC_DEFAULT;
+initBaDate();applyVisibility();syncSegUI();render();
+
+/* ==== Transfer to Growth-Chart tool (same-origin localStorage handoff) ==== */
+function parseBoneAgeYm(str){
+  if(!str)return null;
+  const m=String(str).trim().match(/^(\d+)y(?:(\d+)m)?$/i);
+  if(!m)return null;
+  return parseInt(m[1])+(m[2]?parseInt(m[2])/12:0);
+}
+function bdayToISO(str){
+  const p=parseBday(str);if(!p)return null;
+  return `${p.y}-${String(p.m).padStart(2,"0")}-${String(p.d).padStart(2,"0")}`;
+}
+function compactToISO(str){
+  if(!str)return null;
+  str=String(str).trim();
+  if(/^\d{8}$/.test(str))return `${str.slice(0,4)}-${str.slice(4,6)}-${str.slice(6,8)}`;
+  if(/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(str)){
+    const [y,m,d]=str.replace(/[/.]/g,"-").split("-");
+    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  }
+  return null;
+}
+document.getElementById("transferBtn").addEventListener("click",()=>{
+  const name=(S.txt.name||"").trim();
+  const chartNo=(S.txt.chart||"").trim();
+  const birthISO=bdayToISO(S.txt.bday);
+  if(!name||!chartNo||!birthISO){
+    alert("請先貼上病人資料（需要姓名、病歷號、生日）");
+    return;
+  }
+  const h=parseFloat(S.txt.bh),w=parseFloat(S.txt.bw);
+  const baValue=baDecimal();
+  const hasCurrentVisit=!!(h||w||baValue!=null);
+  // Collect growth records (semester-based history)
+  const growthRecords=[];
+  for(const sem of SEMS){
+    const g=S.growth[sem];
+    if(!g)continue;
+    const gh=parseFloat(g.ht),gw=parseFloat(g.wt);
+    if(gh||gw){
+      growthRecords.push({semester:sem,height:gh||null,weight:gw||null});
+    }
+  }
+  if(!hasCurrentVisit&&growthRecords.length===0){
+    alert("沒有可傳送的資料（需要至少填寫身高、體重、骨齡或學期別生長紀錄其中一項）");
+    return;
+  }
+  const baDateISO=compactToISO(S.txt.ba_date);
+  const today=new Date();
+  const measureDate=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const payload={
+    v:2,
+    timestamp:Date.now(),
+    source:"SOAP-generator",
+    chartNo,name,
+    sex:S.sex==="f"?"girl":"boy",
+    birth:birthISO,
+    fatherH:parseFloat(S.txt.fa_ht)||null,
+    motherH:parseFloat(S.txt.mo_ht)||null,
+    familyNote:(S.txt.fa_note||"").trim()||null,
+    measureDate,
+    height:h||null,
+    weight:w||null,
+    boneAge:baValue,
+    boneAgeDate:baDateISO,
+    pah:parseFloat(S.txt.pah)||null,
+    growthRecords,
+  };
+  try{
+    localStorage.setItem("pending_growth_transfer",JSON.stringify(payload));
+  }catch(e){
+    alert("無法寫入本機儲存：" + e.message);
+    return;
+  }
+  const targetBase=window.location.origin+"/growth-chart/";
+  const targetUrl=targetBase+"?transfer=1&t="+Date.now();
+  window.open(targetUrl,"_blank");
+});
+</script>
+</body>
+</html>
