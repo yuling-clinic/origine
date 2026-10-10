@@ -784,7 +784,7 @@ document.getElementById("transferBtn").addEventListener("click",()=>{
     alert("無法寫入本機儲存：" + e.message);
     return;
   }
-  const targetBase=window.location.origin+"/growth-chart/";
+  const targetBase=new URL("./",window.location.href).href; // same folder as soap.html
   const targetUrl=targetBase+"?transfer=1&t="+Date.now();
   window.open(targetUrl,"_blank");
 });
