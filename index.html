@@ -52,6 +52,7 @@ tailwind.config = {
     margin: 0;
   }
   @media print {
+    .site-credit { display: none !important; }
     body { background: white !important; }
     .print\:hidden { display: none !important; }
     .no-print { display: none !important; }
@@ -71,6 +72,9 @@ tailwind.config = {
 </head>
 <body>
 <div id="root"></div>
+<footer class="site-credit" style="text-align:center;font-size:12px;color:#a8a29e;padding:16px 16px 24px;background:#fafaf9;border-top:1px solid #e7e5e4">
+  系統開發與維護：兒童內分泌 黃玉齡醫師
+</footer>
 
 <script type="text/babel" data-presets="react">
 // Pull React hooks from global
@@ -2921,6 +2925,7 @@ function PrintView({ patient, onClose }) {
           fontSize: 9.5, color: "#1c1917", lineHeight: 1.4
         }}>
           <div>身高體重百分位依據臺灣 0–18 歲生長 reference (mean ± SD)，BMI 切點依衛福部公布建議值。</div>
+          <div style={{ textAlign: "right", color: "#78716c", marginTop: 2 }}>系統開發與維護：兒童內分泌 黃玉齡醫師</div>
         </div>
       </div>
     </div>

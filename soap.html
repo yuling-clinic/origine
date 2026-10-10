@@ -247,10 +247,10 @@
       <div class="body">
         <div class="row" style="margin-bottom:6px">
           <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
-            <input type="checkbox" id="generalPeOn" checked style="cursor:pointer">
+            <input type="checkbox" id="generalPeOn" style="cursor:pointer">
             <span>一般 PE 正常敘述</span>
           </label>
-          <span class="hint" style="margin:0">HEENT / Chest / Heart / Abdomen / Ext；取消勾選則不寫入病歷（Thyroid、Skin 不受影響）</span>
+          <span class="hint" style="margin:0">預設不顯示；勾選後才寫入 HEENT / Chest / Heart / Abdomen / Ext（Thyroid、Skin 不受影響）</span>
         </div>
         <div class="subhead">Skin（＋可加備註）</div>
         <div class="row"><div class="chips" data-group="skin"></div></div>
@@ -420,7 +420,7 @@ const SEMS_JUNIOR=["國一上","國一下","國二上","國二下","國三上","
 // Canonical order (used for reading values back out); the on-screen columns are laid out separately
 const SEMS=[...SEMS_KG,...SEMS_ELEM,...SEMS_JUNIOR];
 
-const S={tpl:"growth",sex:"f",find:{},note:{},txt:{},tags:new Set(),growth:{},dysmorphicOn:false,twinOn:false,pubertyOn:true,generalPeOn:true,
+const S={tpl:"growth",sex:"f",find:{},note:{},txt:{},tags:new Set(),growth:{},dysmorphicOn:false,twinOn:false,pubertyOn:true,generalPeOn:false,
   seg:{delivery:"NSD",dms:"",breastside:"",twin:"A"},
   tanner:{breast:"I",pubic:"I"}};
 const CC_DEFAULT="";
@@ -526,14 +526,14 @@ document.getElementById("twinOn").addEventListener("change",e=>{S.twinOn=e.targe
 document.querySelectorAll(".card.collapsible > h2").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("collapsed")));
 document.getElementById("resetBtn").addEventListener("click",()=>{
   if(!confirm("清除所有已填欄位？"))return;
-  S.find={};S.note={};S.txt={};S.tags=new Set();S.growth={};S.ccConn="for";S.dysmorphicOn=false;S.twinOn=false;S.generalPeOn=true;
+  S.find={};S.note={};S.txt={};S.tags=new Set();S.growth={};S.ccConn="for";S.dysmorphicOn=false;S.twinOn=false;S.generalPeOn=false;
   S.pubertyOn=(S.tpl!=="obesity");
   S.seg={delivery:"NSD",dms:"",breastside:"",twin:"A"};
   S.tanner={breast:"I",pubic:"I"};
   document.querySelectorAll("input,textarea.plain,textarea[data-f],textarea[data-note-g]").forEach(i=>{if(i.type!=="checkbox")i.value="";});
   document.getElementById("dysmorphicOn").checked=false;
   document.getElementById("twinOn").checked=false;
-  document.getElementById("generalPeOn").checked=true;
+  document.getElementById("generalPeOn").checked=false;
   document.getElementById("pubertyOn").checked=S.pubertyOn;
   document.getElementById("ccPreset").value="";document.getElementById("ccConnWord").textContent="for";
   document.querySelectorAll(".chip").forEach(c=>{c.classList.remove("pos");c.querySelector(".sign").textContent="(−)";});
@@ -621,10 +621,13 @@ function render(){
 
   const ph=[birth];
   // Systemic disease — chips + tag selections + free text
-  let sysBase=parts("ss_sys").join(" ");
-  const sysExtra=[...sysdzSel(),...(has("ss_sysdz")?[t("ss_sysdz")]:[])];
-  if(sysExtra.length)sysBase+=`, ${sysExtra.join(", ")}`;
-  ph.push(`Systemic disease: ${sysBase}`);
+  // Default "denied"; list only positives (selected chips, tags, free text)
+  const sysPos=FIND.ss_sys.filter(([k])=>on("ss_sys",k)).map(([k,label])=>{
+    const nt=NOTE_GROUPS.ss_sys?(S.note[fkey("ss_sys",k)]||"").trim():"";
+    return nt?`${label} (${nt})`:label;
+  });
+  const sysAll=[...sysPos,...sysdzSel(),...(has("ss_sysdz")?[t("ss_sysdz")]:[])];
+  ph.push(`Systemic disease: ${sysAll.length?sysAll.join(", "):"denied"}`);
   // Drug use — both chip groups combined
   const drugLine=`Systemic or topical drug use: ${parts("drug_pp").concat(parts("drug_ss")).join(", ")}`;
   ph.push(drugLine);
