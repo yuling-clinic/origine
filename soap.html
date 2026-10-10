@@ -64,6 +64,8 @@
   .chip:hover{border-color:var(--teal)}
   .chip.pos{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
   .chip.pos .sign{color:var(--amber)}
+  .chip.neg{background:var(--teal-soft);border-color:var(--teal);color:var(--teal)}
+  .chip.neg .sign{color:var(--teal)}
   .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
   .chipnote{width:118px;padding:4px 7px;font-size:12px;border-color:var(--amber-line);background:#fff}
   .tagchip{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;cursor:pointer;transition:all .12s;user-select:none}
@@ -425,7 +427,11 @@ const S={tpl:"growth",sex:"f",find:{},note:{},txt:{},tags:new Set(),growth:{},dy
   tanner:{breast:"I",pubic:"I"}};
 const CC_DEFAULT="";
 const fkey=(g,k)=>g+"."+k;
-const on=(g,k)=>!!S.find[fkey(g,k)];
+const on=(g,k)=>S.find[fkey(g,k)]===true;
+// Tri-state groups: unset (not written) → (+) → (−) → unset
+const TRI_GROUPS={pp_cc:true,gi:true};
+const SIGN_UNSET="(?)";
+function triParts(g){const noteG=NOTE_GROUPS[g];return FIND[g].filter(([k])=>S.find[fkey(g,k)]!==undefined&&S.find[fkey(g,k)]!==false).map(([k,label])=>{const v=S.find[fkey(g,k)];if(v==="neg")return `${label}(-)`;const nt=noteG?(S.note[fkey(g,k)]||"").trim():"";return nt?`${label}(+, ${nt})`:`${label}(+)`;});}
 
 function pad(n){return String(n).padStart(2,"0");}
 function todayCompact(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;}
@@ -449,7 +455,7 @@ document.querySelectorAll(".chips").forEach(box=>{
   (FIND[g]||[]).forEach(([k,label])=>{
     const wrap=document.createElement("span");wrap.className="chipwrap";
     const b=document.createElement("button");b.className="chip";b.type="button";b.dataset.g=g;b.dataset.k=k;
-    b.innerHTML=`<span class="txt">${label}</span><span class="sign">(−)</span>`;wrap.appendChild(b);
+    b.innerHTML=`<span class="txt">${label}</span><span class="sign">${TRI_GROUPS[g]?SIGN_UNSET:"(−)"}</span>`;wrap.appendChild(b);
     if(NOTE_GROUPS[g]){const inp=document.createElement("input");inp.type="text";inp.className="chipnote";inp.hidden=true;inp.placeholder="備註";inp.dataset.noteG=g;inp.dataset.noteK=k;wrap.appendChild(inp);}
     box.appendChild(wrap);
   });
@@ -480,7 +486,13 @@ const SEMS_RIGHT=[...SEMS_JUNIOR,...SEMS_KG];
 /* interactions */
 document.addEventListener("click",e=>{
   const chip=e.target.closest(".chip");
-  if(chip){const g=chip.dataset.g,k=chip.dataset.k,key=fkey(g,k);S.find[key]=!S.find[key];chip.classList.toggle("pos",S.find[key]);chip.querySelector(".sign").textContent=S.find[key]?"(+)":"(−)";if(NOTE_GROUPS[g]){const nt=chip.parentElement.querySelector(".chipnote");if(nt)nt.hidden=!S.find[key];}
+  if(chip){const g=chip.dataset.g,k=chip.dataset.k,key=fkey(g,k);
+    if(TRI_GROUPS[g]){const cur=S.find[key];if(cur===true)S.find[key]="neg";else if(cur==="neg")delete S.find[key];else S.find[key]=true;}
+    else S.find[key]=!S.find[key];
+    const v=S.find[key];
+    chip.classList.toggle("pos",v===true);chip.classList.toggle("neg",v==="neg");
+    chip.querySelector(".sign").textContent=v===true?"(+)":v==="neg"?"(−)":(TRI_GROUPS[g]?SIGN_UNSET:"(−)");
+    if(NOTE_GROUPS[g]){const nt=chip.parentElement.querySelector(".chipnote");if(nt)nt.hidden=v!==true;}
     // Turning any dysmorphic item (+) auto-enables the section so it lands in the note
     if(g==="dysmorphic"&&S.find[key]&&!S.dysmorphicOn){S.dysmorphicOn=true;document.getElementById("dysmorphicOn").checked=true;}
     render();return;}
@@ -536,7 +548,7 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
   document.getElementById("generalPeOn").checked=false;
   document.getElementById("pubertyOn").checked=S.pubertyOn;
   document.getElementById("ccPreset").value="";document.getElementById("ccConnWord").textContent="for";
-  document.querySelectorAll(".chip").forEach(c=>{c.classList.remove("pos");c.querySelector(".sign").textContent="(−)";});
+  document.querySelectorAll(".chip").forEach(c=>{c.classList.remove("pos","neg");c.querySelector(".sign").textContent=TRI_GROUPS[c.dataset.g]?SIGN_UNSET:"(−)";});
   document.querySelectorAll(".chipnote").forEach(n=>n.hidden=true);
   document.querySelectorAll(".tagchip").forEach(t=>t.classList.remove("on"));
   initBaDate();syncSegUI();render();
@@ -645,7 +657,7 @@ function render(){
   if(has("pp_ht_inc"))sLines.push(`Height increase ${t("pp_ht_inc")} cm in previous ${t("pp_ht_period")}`);
   const anyOn=(g)=>FIND[g].some(([k])=>on(g,k));
   // Headache/vision and constipation/diarrhea lines: hidden unless something is selected
-  const ccChips=[anyOn("pp_cc")?parts("pp_cc").join(", "):"",parts("ss_cc").join(", "),anyOn("gi")?parts("gi").join(", "):""].filter(Boolean).join("\n");
+  const ccChips=[triParts("pp_cc").join(", "),parts("ss_cc").join(", "),triParts("gi").join(", ")].filter(Boolean).join("\n");
   if(ccChips)sLines.push(ccChips);
   if(has("sleep_from")||has("sleep_to"))sLines.push(`Sleep: ${t("sleep_from")} ~ ${t("sleep_to")}`);
   if(has("exercise"))sLines.push(`Exercise: ${t("exercise")}`);
