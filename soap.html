@@ -95,7 +95,7 @@
   textarea.note{width:100%;border:0;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--ink);padding:14px 16px;resize:vertical;background:var(--surface);white-space:pre-wrap}
   textarea.note:focus{outline:none;background:#FCFEFE}
   #sBox{min-height:170px}#oBox{min-height:280px}#gsBox{min-height:80px}
-  .copyall{width:100%;margin-top:2px;padding:9px;font-size:13px}
+  .copyall{width:100%;margin:0 0 12px;padding:9px;font-size:13px}
   .footnote{font-size:11px;color:var(--faint);text-align:center;padding:8px 0 0;line-height:1.6}
   .refnote{margin-top:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:10.5px;color:var(--muted);line-height:1.6}
   .refnote-title{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
@@ -311,9 +311,9 @@
   </div>
 
   <div class="out">
+    <button class="btn copyall" data-copy="both">複製 S + O 全部</button>
     <div class="card"><h2>S · Subjective<span class="actions"><button class="btn" data-copy="sBox">複製 S</button></span></h2><textarea class="note" id="sBox" spellcheck="false"></textarea></div>
     <div class="card"><h2>O · Objective<span class="actions"><button class="btn" data-copy="oBox">複製 O</button></span></h2><textarea class="note" id="oBox" spellcheck="false"></textarea></div>
-    <button class="btn copyall" data-copy="both">複製 S + O 全部</button>
     <div class="card" style="margin-top:14px"><h2>病人基本資訊<span class="actions"><button class="btn" data-copy="gsBox">複製</button></span></h2><textarea class="note" id="gsBox" spellcheck="false"></textarea></div>
     <div class="footnote">輸出可在框內手動微調再複製。<br>資料僅存在本頁面，重新整理即清空，不會上傳。</div>
     <div class="footnote" style="margin-top:4px">Created &amp; maintained by Dr. Yu-Ling Huang, MD</div>
@@ -526,7 +526,7 @@ document.getElementById("twinOn").addEventListener("change",e=>{S.twinOn=e.targe
 document.querySelectorAll(".card.collapsible > h2").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("collapsed")));
 document.getElementById("resetBtn").addEventListener("click",()=>{
   if(!confirm("清除所有已填欄位？"))return;
-  S.find={};S.note={};S.txt={};S.tags=new Set();S.growth={};S.ccConn="for";S.dysmorphicOn=false;S.twinOn=false;S.generalPeOn=false;
+  S.find={};S.note={};S.txt={};S.tags=new Set();S.growth={};S.ccConn="for";S.dysmorphicOn=false;S.twinOn=false;S.generalPeOn=false;S._pubTouched=false;
   S.pubertyOn=(S.tpl!=="obesity");
   S.seg={delivery:"NSD",dms:"",breastside:"",twin:"A"};
   S.tanner={breast:"I",pubic:"I"};
@@ -629,7 +629,9 @@ function render(){
   const sysAll=[...sysPos,...sysdzSel(),...(has("ss_sysdz")?[t("ss_sysdz")]:[])];
   ph.push(`Systemic disease: ${sysAll.length?sysAll.join(", "):"denied"}`);
   // Drug use — both chip groups combined
-  const drugLine=`Systemic or topical drug use: ${parts("drug_pp").concat(parts("drug_ss")).join(", ")}`;
+  const posOnly=(g)=>FIND[g].filter(([k])=>on(g,k)).map(([k,label])=>{const nt=NOTE_GROUPS[g]?(S.note[fkey(g,k)]||"").trim():"";return nt?`${label} (${nt})`:label;});
+  const drugPos=[...new Set([...posOnly("drug_pp"),...posOnly("drug_ss")])];
+  const drugLine=`Systemic or topical drug use: ${drugPos.length?drugPos.join(", "):"denied"}`;
   ph.push(drugLine);
   // Development & school — only if DMS chosen or school filled
   if(S.seg.dms||has("ss_school")){
@@ -641,7 +643,9 @@ function render(){
 
   const sLines=[headerLine,`[C.C.] ${cc}`];
   if(has("pp_ht_inc"))sLines.push(`Height increase ${t("pp_ht_inc")} cm in previous ${t("pp_ht_period")}`);
-  const ccChips=[parts("pp_cc").join(", "),parts("ss_cc").join(", "),parts("gi").join(", ")].filter(Boolean).join("\n");
+  const anyOn=(g)=>FIND[g].some(([k])=>on(g,k));
+  // Headache/vision and constipation/diarrhea lines: hidden unless something is selected
+  const ccChips=[anyOn("pp_cc")?parts("pp_cc").join(", "):"",parts("ss_cc").join(", "),anyOn("gi")?parts("gi").join(", "):""].filter(Boolean).join("\n");
   if(ccChips)sLines.push(ccChips);
   if(has("sleep_from")||has("sleep_to"))sLines.push(`Sleep: ${t("sleep_from")} ~ ${t("sleep_to")}`);
   if(has("exercise"))sLines.push(`Exercise: ${t("exercise")}`);
@@ -650,6 +654,9 @@ function render(){
   document.getElementById("sBox").value=sLines.join("\n");
 
   const suffix=(k)=>has(k)?`, ${t(k)}`:"";
+  const pubTouched=["breast_note","pubic_note","ax_note","spl","testes_r","testes_l"].some(has)||on("ax","ax")||!!S.seg.breastside;
+  if(pubTouched&&!S._pubTouched&&!S.pubertyOn){S.pubertyOn=true;document.getElementById("pubertyOn").checked=true;}
+  S._pubTouched=pubTouched;
   const pubLines=[
     `Breast: Tanner stage ${S.tanner.breast}${S.seg.breastside?`, ${S.seg.breastside}`:""}${suffix("breast_note")}`,
     `Pubic hair: Tanner stage ${S.tanner.pubic}${suffix("pubic_note")}`,
