@@ -609,7 +609,8 @@ function computePAH2(sex, boneAge, height) {
   if (z == null) return { pah: null, outOfRange: true, reason: "無法計算 z-score" };
   const finalRef = REFERENCE[REFERENCE.length - 1][sex];
   const pah = valueFromZ(z, finalRef, "h");
-  return { pah, z, percentile: _normCdf(z) * 100, outOfRange: false };
+  // extrapolated: the child is below P3 or above P97 at bone age, so the projection relies on tail extrapolation.
+  return { pah, z, percentile: _normCdf(z) * 100, outOfRange: false, extrapolated: z < REF_ZS[0] || z > REF_ZS[REF_ZS.length - 1] };
 }
 
 // Mid-parental target height
@@ -2022,6 +2023,9 @@ function PAHDisplay({ pah, pah2, target, boneAge }) {
                 <div className="text-[11px] text-stone-500 mt-0.5">
                   骨齡 {fmt(boneAge, 1)} 歲 · 百分位 {fmt(pah2.percentile, 1)}% · z={fmt(pah2.z, 2)}
                 </div>
+                {pah2.extrapolated && (
+                  <div className="text-[11px] text-amber-700 mt-0.5">⚠ 外推值，僅供參考（身高{pah2.z < 0 ? "低於 P3" : "高於 P97"}）</div>
+                )}
               </>
             )
           ) : <div className="text-xs text-stone-400 mt-1">—</div>}
@@ -3766,7 +3770,7 @@ function PatientView({ patient, patients, onBack, onSwitchPatient, onNewPatient,
                             <td className="px-4 py-2.5 text-center font-medium" style={{ color: cat?.color || "#a8a29e" }}>{cat?.label || "—"}</td>
                             <td className="px-4 py-2.5 text-right">{m.boneAge ? fmt(m.boneAge, 1) : "—"}</td>
                             <td className="px-4 py-2.5 text-right text-indigo-700 font-medium">{pah && pah.pah ? fmt(pah.pah, 1) : pah && pah.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
-                            <td className="px-4 py-2.5 text-right text-purple-700 font-medium">{pah2 && pah2.pah ? fmt(pah2.pah, 1) : pah2 && pah2.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
+                            <td className="px-4 py-2.5 text-right text-purple-700 font-medium">{pah2 && pah2.pah ? <span title={pah2.extrapolated ? "外推值，僅供參考" : undefined}>{fmt(pah2.pah, 1)}{pah2.extrapolated && <sup className="ml-0.5 text-[10px] text-amber-600">外推</sup>}</span> : pah2 && pah2.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
                             <td className="px-4 py-2.5 text-stone-500">{m.note || "—"}</td>
                             <td className="px-4 py-2.5 text-right print:hidden">
                               <div className="flex gap-1 justify-end">
@@ -3836,7 +3840,7 @@ function PatientView({ patient, patients, onBack, onSwitchPatient, onNewPatient,
                             </td>
                             <td className="px-4 py-2.5 text-right">{usedH ? `${fmt(usedH, 1)}` : "—"}</td>
                             <td className="px-4 py-2.5 text-right text-indigo-700 font-medium">{pah && pah.pah ? fmt(pah.pah, 1) : pah && pah.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
-                            <td className="px-4 py-2.5 text-right text-purple-700 font-medium">{pah2 && pah2.pah ? fmt(pah2.pah, 1) : pah2 && pah2.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
+                            <td className="px-4 py-2.5 text-right text-purple-700 font-medium">{pah2 && pah2.pah ? <span title={pah2.extrapolated ? "外推值，僅供參考" : undefined}>{fmt(pah2.pah, 1)}{pah2.extrapolated && <sup className="ml-0.5 text-[10px] text-amber-600">外推</sup>}</span> : pah2 && pah2.outOfRange ? <span className="text-amber-600 text-xs">超出</span> : "—"}</td>
                             <td className="px-4 py-2.5 text-center text-xs text-stone-500">
                               {cat === "avg" ? "average" : cat === "acc" ? "advanced" : cat === "ret" ? "delayed" : "—"}
                             </td>
