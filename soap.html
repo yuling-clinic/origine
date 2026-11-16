@@ -348,9 +348,10 @@ function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t
 function normCdf(z){return 0.5*(1+erf(z/Math.SQRT2));}
 function lerp(a,b,f){return a+(b-a)*f;}
 function interpRow(ages,rows,age){if(age<=ages[0])return rows[0];if(age>=ages[ages.length-1])return rows[rows.length-1];let i=0;while(ages[i+1]<age)i++;const f=(age-ages[i])/(ages[i+1]-ages[i]);return rows[i].map((v,j)=>lerp(v,rows[i+1][j],f));}
-function pctFromValue(vals,zs,x){let z;const n=vals.length;if(x<=vals[0]){const s=(zs[1]-zs[0])/(vals[1]-vals[0]);z=zs[0]+(x-vals[0])*s;}else if(x>=vals[n-1]){const s=(zs[n-1]-zs[n-2])/(vals[n-1]-vals[n-2]);z=zs[n-1]+(x-vals[n-1])*s;}else{let i=0;while(vals[i+1]<x)i++;const f=(x-vals[i])/(vals[i+1]-vals[i]);z=lerp(zs[i],zs[i+1],f);}return normCdf(z)*100;}
-function htPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.ht,a),PCTZ,x);}
-function wtPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.wt,a),PCTZ,x);}
+/* wide=true (height/weight): tails below P3 / above P97 use the P3–P50 / P50–P97 slope, same as the growth-chart app. */
+function pctFromValue(vals,zs,x,wide){let z;const n=vals.length,lo=wide?(n-1)>>1:1,hi=wide?(n-1)>>1:n-2;if(x<=vals[0]){const s=(zs[lo]-zs[0])/(vals[lo]-vals[0]);z=zs[0]+(x-vals[0])*s;}else if(x>=vals[n-1]){const s=(zs[n-1]-zs[hi])/(vals[n-1]-vals[hi]);z=zs[n-1]+(x-vals[n-1])*s;}else{let i=0;while(vals[i+1]<x)i++;const f=(x-vals[i])/(vals[i+1]-vals[i]);z=lerp(zs[i],zs[i+1],f);}return normCdf(z)*100;}
+function htPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.ht,a),PCTZ,x,true);}
+function wtPct(s,a,x){const g=GROWTH[s];return pctFromValue(interpRow(g.ages,g.wt,a),PCTZ,x,true);}
 function bmiPct(s,a,x){const g=BMIREF[s];if(a<g.ages[0])return null;return pctFromValue(interpRow(g.ages,g.v,a),BMIZ,x);}
 // Same month-only convention as ageStr, so the percentiles and the SD lookup
 // always agree with the CA shown in the note.

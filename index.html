@@ -359,15 +359,18 @@ function _refPoints(ref, metric) {
 }
 
 // Height/weight → z-score against the reference at a given age
+// Tail extrapolation (below P3 / above P97) uses the P3–P50 or P50–P97 slope rather than the
+// outermost segment (P3–P15 / P85–P97): the published values are rounded to 0.5 cm, so a single
+// narrow segment made PAH2 jump by up to 3 cm between adjacent half-year rows.
 function zFromRef(value, ref, metric) {
   if (value == null || ref == null) return null;
-  const pts = _refPoints(ref, metric), n = pts.length;
+  const pts = _refPoints(ref, metric), n = pts.length, mid = (n - 1) >> 1;
   if (value <= pts[0].v) {
-    const s = (pts[1].z - pts[0].z) / (pts[1].v - pts[0].v);
+    const s = (pts[mid].z - pts[0].z) / (pts[mid].v - pts[0].v);
     return pts[0].z + (value - pts[0].v) * s;
   }
   if (value >= pts[n - 1].v) {
-    const s = (pts[n - 1].z - pts[n - 2].z) / (pts[n - 1].v - pts[n - 2].v);
+    const s = (pts[n - 1].z - pts[mid].z) / (pts[n - 1].v - pts[mid].v);
     return pts[n - 1].z + (value - pts[n - 1].v) * s;
   }
   for (let i = 0; i < n - 1; i++) {
@@ -382,13 +385,13 @@ function zFromRef(value, ref, metric) {
 // Exact inverse of zFromRef: z-score → height/weight at a given age
 function valueFromZ(z, ref, metric) {
   if (z == null || ref == null) return null;
-  const pts = _refPoints(ref, metric), n = pts.length;
+  const pts = _refPoints(ref, metric), n = pts.length, mid = (n - 1) >> 1;
   if (z <= pts[0].z) {
-    const s = (pts[1].v - pts[0].v) / (pts[1].z - pts[0].z);
+    const s = (pts[mid].v - pts[0].v) / (pts[mid].z - pts[0].z);
     return pts[0].v + (z - pts[0].z) * s;
   }
   if (z >= pts[n - 1].z) {
-    const s = (pts[n - 1].v - pts[n - 2].v) / (pts[n - 1].z - pts[n - 2].z);
+    const s = (pts[n - 1].v - pts[mid].v) / (pts[n - 1].z - pts[mid].z);
     return pts[n - 1].v + (z - pts[n - 1].z) * s;
   }
   for (let i = 0; i < n - 1; i++) {
